@@ -226,7 +226,8 @@ void smooth(double *input, double *output, int n, int window)
        }
        output[i]=tmp/z;
    }
-  
+} //end-function
+
 
 //************************** SETUP *************************/
 void setup() { 
