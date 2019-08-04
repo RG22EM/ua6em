@@ -145,7 +145,7 @@ void AD9833setFrequency(long frequency, int Waveform) {
 
 //**** Процедура грубой настройки частоты по максимальному току ***/
  void setFreq(){
- for (int i=1; i <= di; i++) {
+ for (unsigned int i=1; i <= di; i++) {
    // Data_ina219=ina219.getCurrent_mA();
       Data_ina219=ina219.shuntCurrent() * 1000; 
     if (Data_ina219 > imax){ imax=Data_ina219; ifreq = freq; } // Если значение больше, то запомнить
