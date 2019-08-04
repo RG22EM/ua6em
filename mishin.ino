@@ -11,7 +11,8 @@
  *                           формируется с частотой 490 герц
  * - добавлена библиотека модуля DAC для регулировки усиления, выставляет первичное
  *   значение на выходе модуля в 0.8 вольта (регулировка усиления TDA-7056) 
- *  
+ * - Версия от 04.08.2019 - Добавлена процедура рассчета скользящего среднего (moving average)
+ * -
  */
 #define SECONDS(x) ((x) * 1000UL)
 #define MINUTES(x)  (SECONDS(x) * 60UL)
@@ -191,6 +192,42 @@ void AD9833setFrequency(long frequency, int Waveform) {
    lcd.print("Generator AD9833");
  }
 
+/****************** MOVING AVERAGE *************************/
+//Процедура рассчета скользящего среднего
+
+void smooth(double *input, double *output, int n, int window)
+{
+   int i,j,z,k1,k2,hw;
+   double tmp;
+   if(fmod(window,2)==0) window++;
+   hw=(window-1)/2;
+   output[0]=input[0];
+
+   for (i=1;i<n;i++){
+       tmp=0;
+       if(i<hw){
+           k1=0;
+           k2=2*i;
+           z=k2+1;
+       }
+       else if((i+hw)>(n-1)){
+           k1=i-n+i+1;
+           k2=n-1;
+           z=k2-k1+1;
+       }
+       else{
+           k1=i-hw;
+           k2=i+hw;
+           z=window;
+       }
+
+       for (j=k1;j<=k2;j++){
+           tmp=tmp+input[j];
+       }
+       output[i]=tmp/z;
+   }
+  
+
 //************************** SETUP *************************/
 void setup() { 
   SPI.begin();
@@ -275,8 +312,8 @@ void loop() {
   myBuzzer = 1;
  }
  if(myBuzzer==1 && !digitalRead(KnobEncoder)){
-  myBuzzer=0;
   stop_Buzzer();
+  myBuzzer=0;
  }
  
  // Data_ina219=ina219.getCurrent_mA();
