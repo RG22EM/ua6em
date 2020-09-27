@@ -341,5 +341,5 @@ void loop() {
       delay(200);
    }
    
-   delay(190);
+   delay(200);
  } //END
