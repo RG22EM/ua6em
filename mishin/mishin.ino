@@ -19,7 +19,7 @@
 #define HOURS(x)  (MINUTES(x) * 60UL)
 #define DAYS(x)   (HOURS(x) * 24UL)
 #define WEEKS(x)  (DAYS(x) * 7UL)
-unsigned long interval = MINUTES(1);
+uint32_t interval = MINUTES(1);
 
 #include <Wire.h>
 #include <SPI.h>
