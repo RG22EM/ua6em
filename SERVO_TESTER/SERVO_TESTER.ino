@@ -6,7 +6,7 @@
 
  // Измерение проводим через пин 2
 #include  "TimeMeasure.h"
-
+volatile uint16_t t = 0;
 void setup() {
   Serial.begin(57600);
   initTimeMeasuring();
@@ -17,5 +17,6 @@ void setup() {
 //
 void loop() {
   const uint16_t res = measureResult();
-  if (res) Serial.println(res);
+   t = ticks2Microseconds(res);
+  if (t) Serial.println(t);
 }
