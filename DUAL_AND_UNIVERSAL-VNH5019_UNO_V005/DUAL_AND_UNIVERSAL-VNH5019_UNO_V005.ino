@@ -286,8 +286,268 @@ class Cl_Voltmeter {
 int volt = 0;
 Cl_Voltmeter Upp(/*пин вольтметра*/VPP,/*переменая*/&volt);
 
-/******************************************************************************/
+void toneRazdray() {
+  //tone(BUZZER,(razdray*10),1000);   // старая функция тональности
+  tone(BUZZER, ((razdray / 5 - 9) * 440), 1000);
+  delay(1000);
+}
 
+void toneSaveeprom() {
+  int i = 0;
+  do {
+    tone(BUZZER, 1000, DIT);
+    delay(DIT + PAUSE);
+    tone(BUZZER, 1000, DASH);
+    delay(DASH + PAUSE);
+    tone(BUZZER, 1000, DIT);
+    delay(DIT + PAUSE);
+    delay(2 * PAUSE); i++;
+  } while (i < 3);
+  delay(2 * PAUSE);
+}
+
+void toneSOS() {
+  do {
+    int i = 0; do {
+      tone(BUZZER, 1000, DIT);
+      delay(DIT + PAUSE);
+      i++;
+    } while (i < 3); delay(2 * PAUSE);
+    int j = 0; do {
+      tone(BUZZER, 1000, DASH);
+      delay(DASH + PAUSE);
+      j++;
+    } while (j < 3); delay(2 * PAUSE);
+    int k = 0; do {
+      tone(BUZZER, 1000, DIT);
+      delay(DIT + PAUSE);
+      k++;
+    } while (k < 3); delay(3 * PAUSE);
+  } while (Icnt > 3);
+}
+
+void tone_isk(void) {
+  tone(BUZZER, 1000, DASH);
+  delay(DASH + PAUSE);
+  tone(BUZZER, 1000, DASH);
+  delay(DASH + PAUSE);
+  tone(BUZZER, 1000, DASH);
+  delay(DASH + PAUSE);
+  delay(PAUSE + PAUSE + PAUSE);
+  tone(BUZZER, 1000, DASH);
+  delay(DASH + PAUSE);
+  tone(BUZZER, 1000, DIT);
+  delay(DIT + PAUSE);
+  tone(BUZZER, 1000, DASH);
+  delay(DASH + PAUSE);
+}
+
+void toneS() {
+  int i=0; do{ tone(BUZZER,1000,DIT); delay(DIT+PAUSE);i++;} while(i<3); delay(2*PAUSE);
+  }
+/*
+   Подпрограмма калибровки аппаратуры, вход в процедуру включение
+   регулятора  с установленным джампером на пине A7.
+   Процедура обработки прерываний INT0 и INT1 должны быть уже
+   инициализированы.
+*/
+
+void calibrates (void) {
+  // pinMode(6,INPUT_PULLUP); // было с цифрового порта
+  // читаем из аналогового порта A7 (VPP)
+  pinMode(13, OUTPUT);
+  int k = 0;
+  int d;
+  static uint16_t chk1;
+  static uint16_t chk2;
+  static uint16_t chk3;
+  do { // здесь ждём 1 секунду или соединения джампа
+    d = analogRead(VPP); // Установлена ли перемычка
+    if (d < 50) {
+      d = 0;
+    }
+    delay(10); k++;
+  } while (k < 100 && d);
+  /* *
+      Serial.print("k=");
+      Serial.println(k);
+      Serial.print("d=");
+      Serial.println(d);
+       Serial.print("THROTTLE_UP=");
+        Serial.println(THROTTLE_UP);
+        Serial.print("THROTTLE_DOWN=");
+        Serial.println(THROTTLE_DOWN);
+          Serial.print("RUDDER_UP=");
+          Serial.println(RUDDER_UP);
+          Serial.print("RUDDER_DOWN=");
+          Serial.println(RUDDER_DOWN);
+           Serial.println("*********************");
+    /* */
+  if (!d) { // здесь процедура калибровки считываем данные стиков в
+    // шесть переменных, сохраняем их в EEPROM
+
+    unsigned long change = millis();
+    toneS(); // подать звуковой сигнал, что мы в режиме калибровка
+    do {
+      if (sharedFlag1) {
+        ATOMIC_BLOCK(ATOMIC_RESTORESTATE) {
+          chk1 = sharedCh1;
+          /* * Serial.print("chk1 = "); Serial.println(chk1);/* *sharedFlag1=0;/* */
+        }
+      }
+      if (chk1 > 0) {
+        if ((chk1 > 1500 && chk1 > THROTTLE_UP))THROTTLE_UP = chk1;
+      }
+      if (chk1 > 0) {
+        if ((chk1 < 1500 && chk1 < THROTTLE_DOWN))THROTTLE_DOWN = chk1;
+      }
+      if (sharedFlag2) {
+        ATOMIC_BLOCK(ATOMIC_RESTORESTATE) {
+          chk2 = sharedCh2;
+          /* * Serial.print("chk2 = "); Serial.println(chk2);/* *sharedFlag2=0;/* */
+        }
+      }
+      if (chk2 > 0) {
+        if ((chk2 > 1500 && chk2 > RUDDER_UP))RUDDER_UP = chk2;
+      }
+      if (chk2 > 0) {
+        if ((chk2 < 1500 && chk2 < RUDDER_DOWN))RUDDER_DOWN = chk2;
+      }
+      if (sharedFlag3) {
+        ATOMIC_BLOCK(ATOMIC_RESTORESTATE) {
+          chk3 = sharedCh3;
+          /* * Serial.print("chk3 = "); Serial.println(chk3);/* *sharedFlag3=0;/* */
+        }
+      }
+      if (chk3 > 0) {
+        if ((chk3 > 1500 && chk3 > CH3_UP))CH3_UP = chk3;
+      }
+      if (chk3 > 0) {
+        if ((chk3 < 1500 && chk3 < CH3_DOWN))CH3_DOWN = chk3;
+      }
+      delay(57);
+    } while ((CH3_UP < 1900 || CH3_DOWN > 1100 || RUDDER_UP < 1900 || RUDDER_DOWN > 1100 || THROTTLE_UP < 1900 || THROTTLE_DOWN > 1100) /* */ &&
+             ((millis() - change) < 15000)/* */);
+    /* */
+#ifdef DEBUG
+    Serial.print("THROTTLE_UP=");
+    Serial.println(THROTTLE_UP);
+    Serial.print("THROTTLE_DOWN=");
+    Serial.println(THROTTLE_DOWN);
+    Serial.print("RUDDER_UP=");
+    Serial.println(RUDDER_UP);
+    Serial.print("RUDDER_DOWN=");
+    Serial.println(RUDDER_DOWN);
+    Serial.print("CH3_UP=");
+    Serial.println(CH3_UP);
+    Serial.print("CH3_DOWN=");
+    Serial.println(CH3_DOWN);
+#endif
+    /* */
+    appa.flagAppa = 88;
+    appa.throttleUp = THROTTLE_UP;
+    appa.throttleDown = THROTTLE_DOWN;
+    appa.rudderUp = RUDDER_UP;
+    appa.rudderDown = RUDDER_DOWN;
+    appa.ch3Up = CH3_UP;
+    appa.ch3Down = CH3_DOWN;
+
+    EEPROM.put(eeAddress, appa);
+    toneSaveeprom();
+
+    // выход из калибровки - крутиться  в цикле до снятия джампера
+    int s;
+    do {
+      delay(100);
+      digitalWrite(13, !digitalRead(13));
+#ifdef DEBUG
+      Serial.println("I'M in LOOP");
+#endif
+      s = analogRead(VPP);
+      if (s < 50) {
+        s = 0;
+      }
+    } while ((!s /* analogRead(VPP) */)); // крутимся в цикле пока стоит перемычка
+    tone_isk();
+#ifdef DEBUG
+    Serial.println("I'M in WORK");
+#endif
+  } else {
+#ifdef DEBUG
+    Serial.println("I'M in WORK");
+#endif
+  }
+}
+
+void setCH2() {
+  PCICR  |= (1 << PCIE2); // инициализируем порт для приёма CH2
+  PCMSK2 |= (1 << PCINT21/*D5*/) /*| (1 << PCINT21)*/;
+}
+
+void readCH2() {
+  static unsigned long ulStart;
+  static unsigned long rch2;
+  if (digitalRead(CH2))  {
+    ulStart = micros();
+  }
+  else  {
+    rch2 = (int)(micros() - ulStart);
+    if (rch2 < 2200 && rch2 > 800) {
+
+#ifdef REVERSE_CH2
+      sharedCh2 = map(rch2, 800, 2200, 2200, 800);
+#else  sharedCh2=rch2;
+#endif
+
+      sharedFlag2 = 1;
+      //    Serial.print("CH2= ");
+      //    Serial.println(rch2);
+    } else {
+      sharedFlag2 = 0;
+    }
+  }
+}
+void setCH3() {
+  PCICR  |= (1 << PCIE1); // инициализируем порт для приёма CH2
+  PCMSK1 |= (1 << PCINT11/*D17*/);
+}
+
+void readCH3() {
+  static unsigned long ulStart;
+  static unsigned long rch3;
+  if (digitalRead(CH3))  {
+    ulStart = micros();
+  }
+  else  {
+    rch3 = (int)(micros() - ulStart);
+    if (rch3 < 2200 && rch3 > 800) {
+
+#ifdef REVERSE_CH3
+      sharedCh3 = map(rch3, 800, 2200, 2200, 800);
+#else  sharedCh3=rch3;
+#endif
+
+      sharedFlag3 = 1;
+      //  Serial.print("CH3= ");
+      //  Serial.println(rch3);
+    } else {
+      sharedFlag3 = 0;
+    }
+  }
+}
+
+/*** Обработчик прерывания для канала CH2 и CH3 (руля и подруливания) ***/
+ISR(PCINT2_vect) {
+  readCH2();
+}
+
+ISR(PCINT1_vect) {
+  readCH3();
+}
+
+/******************************************************************************/
+/*** SETUP ***/
+/******************************************************************************/
 void setup() {
   Serial.begin(115200);
 
@@ -326,7 +586,7 @@ void setup() {
   setCH2();                        // канал руля
   setCH3();                        // канал подрульки
 
-  calibrate();
+  calibrates();
 
   mid_up   = map(MID_UP, 1000, 2000, -500, 500);  // найдём значения для включени MID
   mid_down = map(MID_DOWN, 1000, 2000, -500, 500);
@@ -419,9 +679,9 @@ void setup() {
 /***********************************************************************************/
 
 void loop() {
-  static int ch1;
-  static int ch2;
-  static int ch3;
+  static uint16_t ch1;
+  static uint16_t ch2;
+  static uint16_t ch3;
   int outLeft = 0;
   int outRight = 0;
   int outRuder = 0;
@@ -700,208 +960,4 @@ int stopZone(int in) {
   return 0; // регулировка начинается от 0 стоп зоны до максимума (-вел.стоп зоны)
 }
 
-/*** Обработчик прерывания для канала CH2 и CH3 (руля и подруливания) ***/
-ISR(PCINT1_vect) {
-  readCH3();
-}
-
-ISR(PCINT2_vect) {
-  readCH2();
-}
-
-void setCH3() {
-  PCICR  |= (1 << PCIE1); // инициализируем порт для приёма CH2
-  PCMSK1 |= (1 << PCINT11/*D17*/);
-}
-
-void readCH3() {
-  static unsigned long ulStart;
-  static unsigned long rch3;
-  if (digitalRead(CH3))  {
-    ulStart = micros();
-  }
-  else  {
-    rch3 = (int)(micros() - ulStart);
-    if (rch3 < 2200 && rch3 > 800) {
-
-#ifdef REVERSE_CH3
-      sharedCh3 = map(rch3, 800, 2200, 2200, 800);
-#else  sharedCh3=rch3;
-#endif
-
-      sharedFlag3 = 1;
-      //  Serial.print("CH3= ");
-      //  Serial.println(rch3);
-    } else {
-      sharedFlag3 = 0;
-    }
-  }
-}
-
-void setCH2() {
-  PCICR  |= (1 << PCIE2); // инициализируем порт для приёма CH2
-  PCMSK2 |= (1 << PCINT21/*D5*/) /*| (1 << PCINT21)*/;
-}
-
-void readCH2() {
-  static unsigned long ulStart;
-  static unsigned long rch2;
-  if (digitalRead(CH2))  {
-    ulStart = micros();
-  }
-  else  {
-    rch2 = (int)(micros() - ulStart);
-    if (rch2 < 2200 && rch2 > 800) {
-
-#ifdef REVERSE_CH2
-      sharedCh2 = map(rch2, 800, 2200, 2200, 800);
-#else  sharedCh2=rch2;
-#endif
-
-      sharedFlag2 = 1;
-      //    Serial.print("CH2= ");
-      //    Serial.println(rch2);
-    } else {
-      sharedFlag2 = 0;
-    }
-  }
-}
-
-
-/*
-   Подпрограмма калибровки аппаратуры, вход в процедуру включение
-   регулятора  с установленным джампером на пине A7.
-   Процедура обработки прерываний INT0 и INT1 должны быть уже
-   инициализированы.
-*/
-
-void calibrate (void) {
-  // pinMode(6,INPUT_PULLUP); // было с цифрового порта
-  // читаем из аналогового порта A7 (VPP)
-  pinMode(13, OUTPUT);
-  int k = 0;
-  int d;
-  static uint16_t chk1;
-  static uint16_t chk2;
-  static uint16_t chk3;
-  do { // здесь ждём 1 секунду или соединения джампа
-    d = analogRead(VPP); // Установлена ли перемычка
-    if (d < 50) {
-      d = 0;
-    }
-    delay(10); k++;
-  } while (k < 100 && d);
-  /* *
-      Serial.print("k=");
-      Serial.println(k);
-      Serial.print("d=");
-      Serial.println(d);
-       Serial.print("THROTTLE_UP=");
-        Serial.println(THROTTLE_UP);
-        Serial.print("THROTTLE_DOWN=");
-        Serial.println(THROTTLE_DOWN);
-          Serial.print("RUDDER_UP=");
-          Serial.println(RUDDER_UP);
-          Serial.print("RUDDER_DOWN=");
-          Serial.println(RUDDER_DOWN);
-           Serial.println("*********************");
-    /* */
-  if (!d) { // здесь процедура калибровки считываем данные стиков в
-    // шесть переменных, сохраняем их в EEPROM
-
-    unsigned long change = millis();
-    toneS(); // подать звуковой сигнал, что мы в режиме калибровка
-    do {
-      if (sharedFlag1) {
-        ATOMIC_BLOCK(ATOMIC_RESTORESTATE) {
-          chk1 = sharedCh1;
-          /* * Serial.print("chk1 = "); Serial.println(chk1);/* *sharedFlag1=0;/* */
-        }
-      }
-      if (chk1 > 0) {
-        if ((chk1 > 1500 && chk1 > THROTTLE_UP))THROTTLE_UP = chk1;
-      }
-      if (chk1 > 0) {
-        if ((chk1 < 1500 && chk1 < THROTTLE_DOWN))THROTTLE_DOWN = chk1;
-      }
-      if (sharedFlag2) {
-        ATOMIC_BLOCK(ATOMIC_RESTORESTATE) {
-          chk2 = sharedCh2;
-          /* * Serial.print("chk2 = "); Serial.println(chk2);/* *sharedFlag2=0;/* */
-        }
-      }
-      if (chk2 > 0) {
-        if ((chk2 > 1500 && chk2 > RUDDER_UP))RUDDER_UP = chk2;
-      }
-      if (chk2 > 0) {
-        if ((chk2 < 1500 && chk2 < RUDDER_DOWN))RUDDER_DOWN = chk2;
-      }
-      if (sharedFlag3) {
-        ATOMIC_BLOCK(ATOMIC_RESTORESTATE) {
-          chk3 = sharedCh3;
-          /* * Serial.print("chk3 = "); Serial.println(chk3);/* *sharedFlag3=0;/* */
-        }
-      }
-      if (chk3 > 0) {
-        if ((chk3 > 1500 && chk3 > CH3_UP))CH3_UP = chk3;
-      }
-      if (chk3 > 0) {
-        if ((chk3 < 1500 && chk3 < CH3_DOWN))CH3_DOWN = chk3;
-      }
-      delay(57);
-    } while ((CH3_UP < 1900 || CH3_DOWN > 1100 || RUDDER_UP < 1900 || RUDDER_DOWN > 1100 || THROTTLE_UP < 1900 || THROTTLE_DOWN > 1100) /* */ &&
-             ((millis() - change) < 15000)/* */);
-    /* */
-#ifdef DEBUG
-    Serial.print("THROTTLE_UP=");
-    Serial.println(THROTTLE_UP);
-    Serial.print("THROTTLE_DOWN=");
-    Serial.println(THROTTLE_DOWN);
-    Serial.print("RUDDER_UP=");
-    Serial.println(RUDDER_UP);
-    Serial.print("RUDDER_DOWN=");
-    Serial.println(RUDDER_DOWN);
-    Serial.print("CH3_UP=");
-    Serial.println(CH3_UP);
-    Serial.print("CH3_DOWN=");
-    Serial.println(CH3_DOWN);
-#endif
-    /* */
-    appa.flagAppa = 88;
-    appa.throttleUp = THROTTLE_UP;
-    appa.throttleDown = THROTTLE_DOWN;
-    appa.rudderUp = RUDDER_UP;
-    appa.rudderDown = RUDDER_DOWN;
-    appa.ch3Up = CH3_UP;
-    appa.ch3Down = CH3_DOWN;
-
-    EEPROM.put(eeAddress, appa);
-    toneSaveeprom();
-
-    // выход из калибровки - крутиться  в цикле до снятия джампера
-    int s;
-    do {
-      delay(100);
-      digitalWrite(13, !digitalRead(13));
-#ifdef DEBUG
-      Serial.println("I'M in LOOP");
-#endif
-      s = analogRead(VPP);
-      if (s < 50) {
-        s = 0;
-      }
-    } while ((!s /* analogRead(VPP) */)); // крутимся в цикле пока стоит перемычка
-    tone_isk();
-#ifdef DEBUG
-    Serial.println("I'M in WORK");
-#endif
-  } else {
-#ifdef DEBUG
-    Serial.println("I'M in WORK");
-#endif
-  }
-}
-
-#ifdef DEBUG
-#else
-#endif
+// END PROGRAMM
