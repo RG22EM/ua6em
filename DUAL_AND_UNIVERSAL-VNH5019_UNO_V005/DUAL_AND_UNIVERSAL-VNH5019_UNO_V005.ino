@@ -19,10 +19,7 @@
      на одну ноту выше, по круговому циклу 50% - 440гц 55%-880гц и т.д.
    - изменена функция рассчета раздрая для Рудера взависимости от установленных
      на радиоаппаратуре расходов
-
 */
-
-//#include "Morze.h"
 
 // ***  Выбор для третьего двигателя ПОДРУЛЬКА-МИД  ***
 // При снятии комментария третий двигатель работает как MID
@@ -30,9 +27,14 @@
 // от установок MID_UP и MID_DOWN, если определение закомментировано, то третий
 // двигатель получает данные из канала CH3 (режим подруливания)
 #define MIDS
+
+// *** При снятии комментария аналоговые пины измеряют защиту по току ***
 //#define ZASHITA // Включить процедуру защиты по току
+
+// Работа с кнопками возможна любой из двуз библиотек
 #define GYVER     // Через библиотеку Гайвера иначе QWONE
-#define DEBUG     // Режим отладка включен
+
+//#define DEBUG     // Режим отладка включен
 //#define REVERSE_CH2 // Снять комментарии, если канал CH2 требует реверса
 // работа в этом режиме не проверялась
 
@@ -84,11 +86,11 @@ constexpr byte prescaler2 = bit(CS21);
 #define CH2 5   //D5 rudder (PCINT2 - групповой) PCINT21
 #define CH3 17  //D17(A3) PCINT11 (PCINT1 - групповой)
 
-// Определеня констант для раздрая, если использовать
+// Определения констант для раздрая, если использовать
 // возможность установки расходов придётся вводить
 // переменные и расчет уставок
-#define CH2RR 1850 // Точка включения раздрая Right 
-#define CH2RL 1150 // Точка включения раздрая Left
+#define CH2RR 1850 // Точка включения раздрая Right по умолчанию 
+#define CH2RL 1150 // Точка включения раздрая Left по умолчанию
 uint16_t ch2rr = 1850;
 uint16_t ch2rl = 1150;
 uint16_t ch2null = 1500;
@@ -175,12 +177,12 @@ byte flagTimeR = 0;
 
 struct MyAppa {
   byte  flagAppa;
-  int throttleUp;
-  int throttleDown;
-  int rudderUp;
-  int rudderDown;
-  int ch3Up;
-  int ch3Down;
+  uint16_t throttleUp;
+  uint16_t throttleDown;
+  uint16_t rudderUp;
+  uint16_t rudderDown;
+  uint16_t ch3Up;
+  uint16_t ch3Down;
 };
 MyAppa appa;
 int eeAddress = 5;
@@ -230,10 +232,11 @@ class Cl_Btn {
         state = sbLong;
       }
     }
-    byte read() {
+      byte read() {
       return state;
     }
 };
+
 #ifdef GYVER
 GButton Btn1(BUTTON);
 #else
@@ -345,13 +348,13 @@ void tone_isk(void) {
 void toneS() {
   int i=0; do{ tone(BUZZER,1000,DIT); delay(DIT+PAUSE);i++;} while(i<3); delay(2*PAUSE);
   }
+  
 /*
    Подпрограмма калибровки аппаратуры, вход в процедуру включение
    регулятора  с установленным джампером на пине A7.
    Процедура обработки прерываний INT0 и INT1 должны быть уже
    инициализированы.
 */
-
 void calibrates (void) {
   // pinMode(6,INPUT_PULLUP); // было с цифрового порта
   // читаем из аналогового порта A7 (VPP)
@@ -368,7 +371,7 @@ void calibrates (void) {
     }
     delay(10); k++;
   } while (k < 100 && d);
-  /* *
+/* *
       Serial.print("k=");
       Serial.println(k);
       Serial.print("d=");
@@ -382,9 +385,9 @@ void calibrates (void) {
           Serial.print("RUDDER_DOWN=");
           Serial.println(RUDDER_DOWN);
            Serial.println("*********************");
-    /* */
-  if (!d) { // здесь процедура калибровки считываем данные стиков в
-    // шесть переменных, сохраняем их в EEPROM
+*/
+  if (!d) {  // здесь процедура калибровки считываем данные стиков в
+             // шесть переменных, сохраняем их в EEPROM
 
     unsigned long change = millis();
     toneS(); // подать звуковой сигнал, что мы в режиме калибровка
@@ -392,33 +395,48 @@ void calibrates (void) {
       if (sharedFlag1) {
         ATOMIC_BLOCK(ATOMIC_RESTORESTATE) {
           chk1 = sharedCh1;
-          /* * Serial.print("chk1 = "); Serial.println(chk1);/* *sharedFlag1=0;/* */
         }
       }
+#ifdef DEBUG          
+          Serial.print("chk1 = "); 
+          Serial.println(chk1);
+#endif          
+          /* *sharedFlag1=0;* */
       if (chk1 > 0) {
         if ((chk1 > 1500 && chk1 > THROTTLE_UP))THROTTLE_UP = chk1;
       }
       if (chk1 > 0) {
         if ((chk1 < 1500 && chk1 < THROTTLE_DOWN))THROTTLE_DOWN = chk1;
       }
+      
       if (sharedFlag2) {
         ATOMIC_BLOCK(ATOMIC_RESTORESTATE) {
           chk2 = sharedCh2;
-          /* * Serial.print("chk2 = "); Serial.println(chk2);/* *sharedFlag2=0;/* */
         }
       }
+#ifdef DEBUG          
+          Serial.print("chk2 = "); 
+          Serial.println(chk2);
+#endif          
+          /* * sharedFlag2=0; * */
       if (chk2 > 0) {
         if ((chk2 > 1500 && chk2 > RUDDER_UP))RUDDER_UP = chk2;
       }
       if (chk2 > 0) {
         if ((chk2 < 1500 && chk2 < RUDDER_DOWN))RUDDER_DOWN = chk2;
       }
+      
       if (sharedFlag3) {
         ATOMIC_BLOCK(ATOMIC_RESTORESTATE) {
           chk3 = sharedCh3;
-          /* * Serial.print("chk3 = "); Serial.println(chk3);/* *sharedFlag3=0;/* */
         }
       }
+#ifdef DEBUG
+          Serial.print("chk3 = "); 
+          Serial.println(chk3);
+#endif          
+          /* * sharedFlag3=0; * */
+      
       if (chk3 > 0) {
         if ((chk3 > 1500 && chk3 > CH3_UP))CH3_UP = chk3;
       }
@@ -426,9 +444,9 @@ void calibrates (void) {
         if ((chk3 < 1500 && chk3 < CH3_DOWN))CH3_DOWN = chk3;
       }
       delay(57);
-    } while ((CH3_UP < 1900 || CH3_DOWN > 1100 || RUDDER_UP < 1900 || RUDDER_DOWN > 1100 || THROTTLE_UP < 1900 || THROTTLE_DOWN > 1100) /* */ &&
-             ((millis() - change) < 15000)/* */);
-    /* */
+    } while ((CH3_UP < 1900 || CH3_DOWN > 1100 || RUDDER_UP < 1900 || RUDDER_DOWN > 1100 || THROTTLE_UP < 1900 || THROTTLE_DOWN > 1100) &&
+             ((millis() - change) < 15000));
+
 #ifdef DEBUG
     Serial.print("THROTTLE_UP=");
     Serial.println(THROTTLE_UP);
@@ -443,7 +461,6 @@ void calibrates (void) {
     Serial.print("CH3_DOWN=");
     Serial.println(CH3_DOWN);
 #endif
-    /* */
     appa.flagAppa = 88;
     appa.throttleUp = THROTTLE_UP;
     appa.throttleDown = THROTTLE_DOWN;
@@ -477,11 +494,31 @@ void calibrates (void) {
     Serial.println("I'M in WORK");
 #endif
   }
-}
+} // END CALIBRATES
+
+
+/****************** INT1 *******************/
+void int1() {             // Interrupt service routine INT1
+  static unsigned long ulStart;
+  static unsigned long rch1;
+  if (digitalRead(CH1))  {
+    ulStart = micros();
+  }
+  else  {
+    rch1 = (int)(micros() - ulStart);
+    if (rch1 < 2200 && rch1 > 800) {
+      sharedCh1 = rch1;
+      sharedFlag1 = 1;
+    } else {
+      sharedFlag1 = 0;
+    }
+  }
+} // END INT1 (пин 3)
+
 
 void setCH2() {
   PCICR  |= (1 << PCIE2); // инициализируем порт для приёма CH2
-  PCMSK2 |= (1 << PCINT21/*D5*/) /*| (1 << PCINT21)*/;
+  PCMSK2 |= (1 << PCINT21/*D5*/);
 }
 
 void readCH2() {
@@ -493,23 +530,27 @@ void readCH2() {
   else  {
     rch2 = (int)(micros() - ulStart);
     if (rch2 < 2200 && rch2 > 800) {
-
+    sharedCh2=rch2;
+    
 #ifdef REVERSE_CH2
-      sharedCh2 = map(rch2, 800, 2200, 2200, 800);
-#else  sharedCh2=rch2;
+    sharedCh2 = map(rch2, 800, 2200, 2200, 800);
 #endif
-
-      sharedFlag2 = 1;
-      //    Serial.print("CH2= ");
-      //    Serial.println(rch2);
+    sharedFlag2 = 1;
+    
+#ifdef DEBUG    
+    Serial.print("CH2= ");
+    Serial.println(rch2);
+#endif    
     } else {
       sharedFlag2 = 0;
     }
   }
 }
+
+
 void setCH3() {
-  PCICR  |= (1 << PCIE1); // инициализируем порт для приёма CH2
-  PCMSK1 |= (1 << PCINT11/*D17*/);
+  PCICR  |= (1 << PCIE1); // инициализируем порт для приёма CH3
+  PCMSK1 |= (1 << PCINT11/*D17 A3*/);
 }
 
 void readCH3() {
@@ -518,23 +559,27 @@ void readCH3() {
   if (digitalRead(CH3))  {
     ulStart = micros();
   }
-  else  {
+  else
+  {
     rch3 = (int)(micros() - ulStart);
-    if (rch3 < 2200 && rch3 > 800) {
-
+    if (rch3 < 2200 && rch3 > 800)
+    {
+    sharedCh3=rch3;
+    
 #ifdef REVERSE_CH3
-      sharedCh3 = map(rch3, 800, 2200, 2200, 800);
-#else  sharedCh3=rch3;
+       sharedCh3 = map(rch3, 800, 2200, 2200, 800);
 #endif
-
-      sharedFlag3 = 1;
-      //  Serial.print("CH3= ");
-      //  Serial.println(rch3);
+       sharedFlag3 = 1;
+#ifdef DEBUG
+       Serial.print("CH3= ");
+       Serial.println(rch3);
+#endif       
     } else {
-      sharedFlag3 = 0;
-    }
+       sharedFlag3 = 0;
+           }
   }
 }
+
 
 /*** Обработчик прерывания для канала CH2 и CH3 (руля и подруливания) ***/
 ISR(PCINT2_vect) {
@@ -544,6 +589,102 @@ ISR(PCINT2_vect) {
 ISR(PCINT1_vect) {
   readCH3();
 }
+
+// *** Работает с моторами ***
+void setMotor(int outLeft, int outRight, int outRuder) {
+#ifdef MIDS     // Как Средний 
+  if (delta == 0) { // первое включение в работу двигателя MID
+    if (outRuder > mid_up || outRuder < mid_down ) {
+      digitalWrite(DIR_RUDER1, outRuder < 0  ? LOW : HIGH);
+      delayMicroseconds(4);        // блокируем сквозняки на всякий случай
+      digitalWrite(DIR_RUDER2, outRuder < 0  ? HIGH : LOW);
+      outRuder = abs(outRuder) >> 1;   // преобразуем делением на 2 в диапазон 0-255
+      OCR2A = outRuder;  //  pin 11
+      //Serial.print(outMid);
+      //Serial.print(",");
+      delta = 1; // мотор включен
+    } else {
+      digitalWrite(DIR_RUDER1, LOW);
+      delayMicroseconds(4);
+      digitalWrite(DIR_RUDER2, LOW);
+      OCR2A = outRuder;
+    }
+  } else {
+    if (outRuder > mid_up - MID_DELTA || outRuder < mid_down + MID_DELTA ) {
+      digitalWrite(DIR_RUDER1, outRuder < 0  ? LOW : HIGH);
+      delayMicroseconds(4);        // блокируем сквозняки на всякий случай
+      digitalWrite(DIR_RUDER2, outRuder < 0  ? HIGH : LOW);
+      outRuder = abs(outRuder) >> 1;   // преобразуем делением на 2 в диапазон 0-255
+      OCR2A = outRuder;  //  pin 11
+      //Serial.print(outMid);
+      //Serial.print(",");
+      delta = 1; // мотор включен
+    } else {
+      digitalWrite(DIR_RUDER1, LOW);
+      delayMicroseconds(4);
+      digitalWrite(DIR_RUDER2, LOW);
+      OCR2A = outRuder;
+      delta = 0;
+    }
+  }
+#else
+  // Мотор подрульки
+  if (outRuder == 0) { //Режим СТОП
+    digitalWrite(DIR_RUDER1, LOW);
+    delayMicroseconds(4);
+    digitalWrite(DIR_RUDER2, LOW);
+    outRuder = abs(outRuder) >> 1; // преобразуем делением на 2 в диапазон 0-255
+    OCR2A = outRuder; //  pin 11  Частота ШИМ по выбору
+  } else { // Рабочий режим
+    digitalWrite(DIR_RUDER1, outRuder < 0 ? LOW : HIGH);
+    delayMicroseconds(4);        // блокируем сквозняки на всякий случай
+    digitalWrite(DIR_RUDER2, outRuder < 0 ? HIGH : LOW);
+    outRuder = abs(outRuder) >> 1; // преобразуем делением на 2 в диапазон 0-255
+    OCR2A = outRuder; //  pin 11  Частота ШИМ по выбору // так не работает
+    // analogWrite(11,outRuder); // так работает
+    Serial.print("RUDER = ");
+    Serial.println(outRuder);
+  }
+#endif
+
+  if ((outLeft || outRight) == 0) {
+    // Левый СТОП
+    digitalWrite(DIR_LEFT1, LOW);
+    delayMicroseconds(4);
+    digitalWrite(DIR_LEFT2, LOW);
+    outLeft = abs(outLeft) >> 1; // преобразуем делением на 2 в диапазон 0-255
+    OCR1A = outLeft; //  pin 9  Частота ШИМ по выбору
+
+    // Правый СТОП
+    digitalWrite(DIR_RIGHT1, LOW);
+    delayMicroseconds(4);
+    digitalWrite(DIR_RIGHT2, LOW);
+    outRight = abs(outRight) >> 1; // преобразуем делением на 2 в диапазон 0-255
+    OCR1B  = outRight; //  pin 10 Частота ШИМ по выбору
+
+  } else { // *** Если не режим СТОП то ***
+
+    // Левый
+    digitalWrite(DIR_LEFT1  , outLeft < 0 ? LOW : HIGH);
+    delayMicroseconds(4);        // блокируем сквозняки на всякий случай
+    digitalWrite(DIR_LEFT2 , outLeft < 0 ? HIGH : LOW);
+    outLeft = abs(outLeft) >> 1; // преобразуем делением на 2 в диапазон 0-255
+    OCR1A = outLeft; //  pin 9  Частота ШИМ 490гц
+    // Правый
+    digitalWrite(DIR_RIGHT1 , outRight < 0  ? LOW : HIGH);
+    delayMicroseconds(4);        // блокируем сквозняки на всякий случай
+    digitalWrite(DIR_RIGHT2 , outRight < 0  ? HIGH : LOW);
+    outRight = abs(outRight) >> 1; // преобразуем делением на 2 в диапазон 0-255
+    OCR1B  = outRight; //  pin 10 Частота ШИМ 490гц
+  }
+} // *** END SetMotor ***
+
+int stopZone(int in) {
+  if (in < -STOP_ZONE) return in + STOP_ZONE; // уменьшить значение на величину
+  if (in >  STOP_ZONE) return in - STOP_ZONE; // стоп зоны, если в зоне то - 0
+  return 0; // регулировка начинается от 0 стоп зоны до максимума (-вел.стоп зоны)
+}
+
 
 /******************************************************************************/
 /*** SETUP ***/
@@ -580,7 +721,10 @@ void setup() {
   pinMode(CH1, INPUT);
   pinMode(CH2, INPUT_PULLUP);
   pinMode(CH3, INPUT_PULLUP);
-  //pinMode(BUTTON,INPUT);  //Подключается и инициалирируется в объекте КНОПКА
+  
+#ifndef GYVER
+pinMode(BUTTON,INPUT);  //Подключается и инициалирируется в объекте КНОПКА
+#endif
 
   attachInterrupt(1, int1, CHANGE);// канал газа
   setCH2();                        // канал руля
@@ -729,15 +873,16 @@ void loop() {
     toneSaveeprom(); EEPROM.write(ADREPROM, razdray);
   }
 #else
-  if (Btn1.read() == sbClick)  { // Вызвать процедуру установки раздрая
+  if (Btn1.read() == sbClick)
+  { // Вызвать процедуру установки раздрая
     razdray += 5; toneRazdray(); Serial.println("IS RAZDRAY");
-    if (razdray > 95) {
-      razdray = 50;
-    }
+    if (razdray > 95) { razdray = 50; }
   }
+  
   if (Btn1.read() == sbLong)   { // Вызвать процедуру записи в EPROM
     toneSaveeprom(); EEPROM.write(ADREPROM, razdray);
-#endif                             }
+                          }
+#endif   
   //[1000..2000]
   if (sharedFlag1) {
     ATOMIC_BLOCK(ATOMIC_RESTORESTATE) {
@@ -838,126 +983,14 @@ void loop() {
 #else
   setMotor(outLeft, outRight, outRuder);
 #endif
-  /* *
+#ifdef DEBUG 
         Serial.print(outLeft);
         Serial.print(",");
         Serial.println(outRight);
         Serial.print(", - ");
         Serial.println(outRuder);
-    /* */
-} //END LOOP
-
-
-/****************** INT1 *******************/
-void int1() {             // Interrupt service routine INT1
-  static unsigned long ulStart;
-  static unsigned long rch1;
-  if (digitalRead(CH1))  {
-    ulStart = micros();
-  }
-  else  {
-    rch1 = (int)(micros() - ulStart);
-    if (rch1 < 2200 && rch1 > 800) {
-      sharedCh1 = rch1;
-      sharedFlag1 = 1;
-    } else {
-      sharedFlag1 = 0;
-    }
-  }
-} // END INT1 (пин 3)
-
-void setMotor(int outLeft, int outRight, int outRuder) {
-#ifdef MIDS     // Как Средний 
-  if (delta == 0) { // первое включение в работу двигателя MID
-    if (outRuder > mid_up || outRuder < mid_down ) {
-      digitalWrite(DIR_RUDER1, outRuder < 0  ? LOW : HIGH);
-      delayMicroseconds(4);        // блокируем сквозняки на всякий случай
-      digitalWrite(DIR_RUDER2, outRuder < 0  ? HIGH : LOW);
-      outRuder = abs(outRuder) >> 1;   // преобразуем делением на 2 в диапазон 0-255
-      OCR2A = outRuder;  //  pin 11
-      //Serial.print(outMid);
-      //Serial.print(",");
-      delta = 1; // мотор включен
-    } else {
-      digitalWrite(DIR_RUDER1, LOW);
-      delayMicroseconds(4);
-      digitalWrite(DIR_RUDER2, LOW);
-      OCR2A = outRuder;
-    }
-  } else {
-    if (outRuder > mid_up - MID_DELTA || outRuder < mid_down + MID_DELTA ) {
-      digitalWrite(DIR_RUDER1, outRuder < 0  ? LOW : HIGH);
-      delayMicroseconds(4);        // блокируем сквозняки на всякий случай
-      digitalWrite(DIR_RUDER2, outRuder < 0  ? HIGH : LOW);
-      outRuder = abs(outRuder) >> 1;   // преобразуем делением на 2 в диапазон 0-255
-      OCR2A = outRuder;  //  pin 11
-      //Serial.print(outMid);
-      //Serial.print(",");
-      delta = 1; // мотор включен
-    } else {
-      digitalWrite(DIR_RUDER1, LOW);
-      delayMicroseconds(4);
-      digitalWrite(DIR_RUDER2, LOW);
-      OCR2A = outRuder;
-      delta = 0;
-    }
-  }
-#else
-  // Мотор подрульки
-  if (outRuder == 0) { //Режим СТОП
-    digitalWrite(DIR_RUDER1, LOW);
-    delayMicroseconds(4);
-    digitalWrite(DIR_RUDER2, LOW);
-    outRuder = abs(outRuder) >> 1; // преобразуем делением на 2 в диапазон 0-255
-    OCR2A = outRuder; //  pin 11  Частота ШИМ по выбору
-  } else { // Рабочий режим
-    digitalWrite(DIR_RUDER1, outRuder < 0 ? LOW : HIGH);
-    delayMicroseconds(4);        // блокируем сквозняки на всякий случай
-    digitalWrite(DIR_RUDER2, outRuder < 0 ? HIGH : LOW);
-    outRuder = abs(outRuder) >> 1; // преобразуем делением на 2 в диапазон 0-255
-    OCR2A = outRuder; //  pin 11  Частота ШИМ по выбору // так не работает
-    // analogWrite(11,outRuder); // так работает
-    Serial.print("RUDER = ");
-    Serial.println(outRuder);
-  }
-#endif
-
-  if ((outLeft || outRight) == 0) {
-    // Левый СТОП
-    digitalWrite(DIR_LEFT1, LOW);
-    delayMicroseconds(4);
-    digitalWrite(DIR_LEFT2, LOW);
-    outLeft = abs(outLeft) >> 1; // преобразуем делением на 2 в диапазон 0-255
-    OCR1A = outLeft; //  pin 9  Частота ШИМ по выбору
-
-    // Правый СТОП
-    digitalWrite(DIR_RIGHT1, LOW);
-    delayMicroseconds(4);
-    digitalWrite(DIR_RIGHT2, LOW);
-    outRight = abs(outRight) >> 1; // преобразуем делением на 2 в диапазон 0-255
-    OCR1B  = outRight; //  pin 10 Частота ШИМ по выбору
-
-  } else { // *** Если не режим СТОП то ***
-
-    // Левый
-    digitalWrite(DIR_LEFT1  , outLeft < 0 ? LOW : HIGH);
-    delayMicroseconds(4);        // блокируем сквозняки на всякий случай
-    digitalWrite(DIR_LEFT2 , outLeft < 0 ? HIGH : LOW);
-    outLeft = abs(outLeft) >> 1; // преобразуем делением на 2 в диапазон 0-255
-    OCR1A = outLeft; //  pin 9  Частота ШИМ 490гц
-    // Правый
-    digitalWrite(DIR_RIGHT1 , outRight < 0  ? LOW : HIGH);
-    delayMicroseconds(4);        // блокируем сквозняки на всякий случай
-    digitalWrite(DIR_RIGHT2 , outRight < 0  ? HIGH : LOW);
-    outRight = abs(outRight) >> 1; // преобразуем делением на 2 в диапазон 0-255
-    OCR1B  = outRight; //  pin 10 Частота ШИМ 490гц
-  }
-} // *** END SetMotor ***
-
-int stopZone(int in) {
-  if (in < -STOP_ZONE) return in + STOP_ZONE; // уменьшить значение на величину
-  if (in >  STOP_ZONE) return in - STOP_ZONE; // стоп зоны, если в зоне то - 0
-  return 0; // регулировка начинается от 0 стоп зоны до максимума (-вел.стоп зоны)
+#endif   
+     
 }
-
+// END LOOP
 // END PROGRAMM
