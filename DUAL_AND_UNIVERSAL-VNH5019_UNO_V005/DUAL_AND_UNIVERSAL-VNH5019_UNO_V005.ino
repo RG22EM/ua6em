@@ -32,7 +32,7 @@
 //#define ZASHITA // Включить процедуру защиты по току
 
 // Работа с кнопками возможна любой из двуз библиотек
-#define GYVER     // Через библиотеку Гайвера иначе QWONE
+//#define GYVER     // Через библиотеку Гайвера иначе QWONE
 
 //#define DEBUG     // Режим отладка включен
 //#define REVERSE_CH2 // Снять комментарии, если канал CH2 требует реверса
@@ -138,7 +138,8 @@ uint16_t ch2null = 1500;
 #define MIN 1000       // 1150
 #define MAX 2000       // 1850
 #define HALF ((MAX-MIN)/2)
-#define MID  ((MIN+MAX)/2)
+//#define MID  ((MIN+MAX)/2)
+volatile uint16_t MID = ((MIN+MAX)/2);
 #define STOP_ZONE 30    // 80
 #define PWM_MAX 510
 #define SOScounter 3    // Счётчик числа срабатываний защиты по току 
@@ -494,6 +495,7 @@ void calibrates (void) {
     Serial.println("I'M in WORK");
 #endif
   }
+  MID = (RUDDER_UP + RUDDER_DOWN)/2;
 } // END CALIBRATES
 
 
