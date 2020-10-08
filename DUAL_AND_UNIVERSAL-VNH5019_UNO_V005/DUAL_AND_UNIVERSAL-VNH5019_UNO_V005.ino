@@ -490,7 +490,7 @@ void calibrates (void) {
     } while ((!s /* analogRead(VPP) */)); // крутимся в цикле пока стоит перемычка
     tone_isk();
 #ifdef DEBUG
-    Serial.println("I'M in WORK");
+    Serial.println("Calibrate is OK");
 #endif
   } else {
 #ifdef DEBUG
