@@ -693,7 +693,7 @@ int stopZone(int in) {
 /*** SETUP ***/
 /******************************************************************************/
 void setup() {
-  Serial.begin(115200);
+  Serial.begin(57600);
 
   pinMode(M1ENAB, OUTPUT);        // Мотор левого борта
   pinMode(DIR_LEFT1, OUTPUT);
